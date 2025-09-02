@@ -2,10 +2,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required, current_user
 from datetime import date, timedelta
-from sqlalchemy import func, case
+from sqlalchemy import func, case, or_
 from werkzeug.security import generate_password_hash
 import csv, io
-from utils import csv_response, calendar_rows_to_ics, ics_to_calendar_rows, parse_date_any
 
 from models import (
     db,
@@ -15,19 +14,13 @@ from models import (
     SchoolCalendar,
     SchoolYear,
 )
-
+from utils import csv_response, calendar_rows_to_ics, ics_to_calendar_rows, parse_date_any
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 # ---------- Access control ----------
-def is_admin() -> bool:
-    return current_user.is_authenticated and current_user.role == "admin"
-
 @admin_bp.before_request
 def require_admin():
-    from flask import request, redirect, url_for
-    from flask_login import current_user
-
     if not current_user.is_authenticated:
         return redirect(url_for("auth.login"))
 
@@ -47,7 +40,6 @@ def students():
     query = Student.query
     if q:
         like = f"%{q}%"
-        from sqlalchemy import or_  # (already added above)
         query = query.filter(
             or_(
                 Student.first_name.ilike(like),
@@ -268,7 +260,6 @@ def calendar_delete(cid):
 @admin_bp.route("/calendar/export")
 @login_required
 def calendar_export():
-    # Optional filters
     start_str = request.args.get("start")
     end_str = request.args.get("end")
     year_id = request.args.get("year_id")
@@ -349,6 +340,67 @@ def calendar_import():
     flash(f"Imported {created} new, updated {updated} calendar days", "success")
     return redirect(url_for("admin.calendar_list"))
 
+# ---------- Calendar CSV import ----------
+@admin_bp.route("/calendar/import_csv", methods=["GET", "POST"])
+@login_required
+def calendar_import_csv():
+    years = SchoolYear.query.order_by(SchoolYear.start_date).all()
+    if request.method == "POST":
+        file = request.files.get("file")
+        target_year_id = (request.form.get("school_year_id") or "").strip()
+        mode = (request.form.get("mode") or "merge").lower()
+
+        if not file or not file.filename.lower().endswith(".csv"):
+            flash("Please choose a .csv file", "danger")
+            return redirect(url_for("admin.calendar_import_csv"))
+
+        stream = io.StringIO(file.stream.read().decode("utf-8-sig"))
+        reader = csv.DictReader(stream)
+        created = updated = skipped = 0
+
+        # CSV header: date,type,description,year
+        for row in reader:
+            try:
+                d = parse_date_any(row.get("date", ""))
+            except Exception:
+                skipped += 1
+                continue
+
+            t = (row.get("type") or "Regular").strip()
+            desc = (row.get("description") or "").strip() or None
+            year_name = (row.get("year") or "").strip()
+
+            # resolve school year
+            if year_name:
+                sy = SchoolYear.query.filter_by(name=year_name).first()
+                if not sy:
+                    flash(f"Unknown school year in CSV: {year_name}", "danger")
+                    return redirect(url_for("admin.calendar_import_csv"))
+            elif target_year_id:
+                sy = SchoolYear.query.get(int(target_year_id))
+            else:
+                sy = SchoolYear.query.filter(SchoolYear.start_date <= d, SchoolYear.end_date >= d).first()
+            sy_id = sy.id if sy else None
+
+            if mode == "replace":
+                q = SchoolCalendar.query.filter_by(date=d, school_year_id=sy_id)
+                q.delete(synchronize_session=False)
+
+            rec = SchoolCalendar.query.filter_by(date=d, school_year_id=sy_id).first()
+            if not rec:
+                rec = SchoolCalendar(date=d, school_year_id=sy_id)
+                db.session.add(rec)
+                created += 1
+            else:
+                updated += 1
+            rec.type = t
+            rec.description = desc
+
+        db.session.commit()
+        flash(f"Calendar CSV imported: {created} new, {updated} updated, {skipped} skipped (bad date)", "success")
+        return redirect(url_for("admin.calendar_list"))
+
+    return render_template("calendar_import_csv.html", years=years)
 
 # ---------- Attendance CSV export/import ----------
 @admin_bp.route("/attendance/export")
@@ -392,71 +444,75 @@ def attendance_export():
         )
     header = ["date", "last_name", "first_name", "grade", "status", "notes", "year"]
     fname = f"attendance_{start.isoformat()}_{end.isoformat()}.csv"
-    return csv_response(data, fname, header, title="Courageous Learner Academy Attendance")
+    return csv_response(data, fname, header, title="Courageous Learners Academy Attendance")
 
-@admin_bp.route("/calendar/import_csv", methods=["GET", "POST"])
+@admin_bp.route("/attendance/import_csv", methods=["GET", "POST"])
 @login_required
-def calendar_import_csv():
+def attendance_import_csv():
     years = SchoolYear.query.order_by(SchoolYear.start_date).all()
     if request.method == "POST":
         file = request.files.get("file")
         target_year_id = (request.form.get("school_year_id") or "").strip()
-        mode = (request.form.get("mode") or "merge").lower()
 
         if not file or not file.filename.lower().endswith(".csv"):
             flash("Please choose a .csv file", "danger")
-            return redirect(url_for("admin.calendar_import_csv"))
+            return redirect(url_for("admin.attendance_import_csv"))
 
         stream = io.StringIO(file.stream.read().decode("utf-8-sig"))
         reader = csv.DictReader(stream)
-        created = updated = skipped = 0   # <-- add skipped here
+        created = updated = skipped = 0
 
-        # CSV header: date,type,description,year
+        # CSV header: date,last_name,first_name,grade,status,notes,year
         for row in reader:
             # DATE (robust parse)
             try:
                 d = parse_date_any(row.get("date", ""))
             except Exception:
-                skipped += 1            # bad date format
+                skipped += 1  # bad date format
                 continue
 
-            t = (row.get("type") or "Regular").strip()
-            desc = (row.get("description") or "").strip() or None
+            ln = (row.get("last_name") or "").strip()
+            fn = (row.get("first_name") or "").strip()
+            gr = (row.get("grade") or "").strip() or None
+            status = (row.get("status") or "Present").strip()
+            notes = (row.get("notes") or "").strip() or None
             year_name = (row.get("year") or "").strip()
 
-            # resolve school year
+            # find student
+            s = Student.query.filter_by(last_name=ln, first_name=fn, grade=gr).first()
+            if not s:
+                skipped += 1            # no matching student
+                continue
+
+            # resolve year
             if year_name:
                 sy = SchoolYear.query.filter_by(name=year_name).first()
                 if not sy:
-                    flash(f"Unknown school year in CSV: {year_name}", "danger")
-                    return redirect(url_for("admin.calendar_import_csv"))
+                    skipped += 1        # unknown year name
+                    continue
             elif target_year_id:
                 sy = SchoolYear.query.get(int(target_year_id))
             else:
                 sy = SchoolYear.query.filter(SchoolYear.start_date <= d, SchoolYear.end_date >= d).first()
             sy_id = sy.id if sy else None
 
-            if mode == "replace":
-                q = SchoolCalendar.query.filter_by(date=d, school_year_id=sy_id)
-                q.delete(synchronize_session=False)
-
-            rec = SchoolCalendar.query.filter_by(date=d, school_year_id=sy_id).first()
+            rec = Attendance.query.filter_by(student_id=s.id, date=d).first()
             if not rec:
-                rec = SchoolCalendar(date=d, school_year_id=sy_id)
+                rec = Attendance(student_id=s.id, date=d, school_year_id=sy_id)
                 db.session.add(rec)
                 created += 1
             else:
                 updated += 1
-            rec.type = t
-            rec.description = desc
+            rec.status = status
+            rec.notes = notes
+            if sy_id and rec.school_year_id != sy_id:
+                rec.school_year_id = sy_id
 
         db.session.commit()
-        flash(f"Calendar CSV imported: {created} new, {updated} updated, {skipped} skipped (bad date)", "success")
-        return redirect(url_for("admin.calendar_list"))
+        flash(f"Attendance CSV imported: {created} new, {updated} updated, {skipped} skipped", "success")
+        return redirect(url_for("admin.reports"))
 
-    return render_template("calendar_import_csv.html", years=years)
-
-
+    return render_template("attendance_import_csv.html", years=years)
 
 # ---------- Reports ----------
 @admin_bp.route("/reports", methods=["GET"])
