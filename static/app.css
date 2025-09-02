@@ -1,0 +1,43 @@
+/* Brand palette */
+:root{
+  /* Core theme colors (Bootstrap uses these) */
+  --bs-primary: #e75480;   /* pink */
+  --bs-secondary: #2ecc71; /* green */
+  --bs-success: #27ae60;   /* deeper green */
+  --bs-warning: #f39c12;   /* orange */
+  --bs-info: #16a085;
+  --bs-danger: #e74c3c;
+
+  /* Optional subtle accents */
+  --app-accent-1: #ffe9f0; /* very light pink */
+  --app-accent-2: #e8fff2; /* very light green */
+  --app-accent-3: #fff3e0; /* very light orange */
+}
+
+/* Make the navbar use primary (pink) background */
+.navbar.bg-primary,
+.navbar.navbar-dark.bg-primary {
+  background-image: linear-gradient(90deg, #e75480, #f39c12);
+}
+
+/* Card polish */
+.card {
+  border-radius: 1rem;
+}
+
+/* Optional soft page background */
+body.bg-light {
+  background:
+    radial-gradient(1200px 600px at -10% -10%, var(--app-accent-1), transparent 60%),
+    radial-gradient(1000px 500px at 110% 0%, var(--app-accent-3), transparent 55%),
+    radial-gradient(900px 600px at 50% 120%, var(--app-accent-2), transparent 50%),
+    #fafafa;
+}
+
+/* Buttons feel */
+.btn {
+  border-radius: 0.75rem;
+}
+
+/* Links in dropdowns a bit bolder */
+.dropdown-item { font-weight: 500; }

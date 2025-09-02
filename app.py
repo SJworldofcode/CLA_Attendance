@@ -57,4 +57,10 @@ def create_app():
             else:
                 print("Admin already exists.")
 
+    @app.route("/reports")
+    @login_required
+    def reports_alias():
+        # Reuse the admin.reports view; admin.before_request already allows it for any logged-in user
+        return redirect(url_for("admin.reports"))
+
     return app

@@ -1,25 +1,57 @@
 # utils.py
 import csv, io
 from flask import Response
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import Iterable, Tuple
 from icalendar import Calendar, Event
 
-def csv_response(rows, filename, header):
-    """rows = iterable of sequences (matching header order)"""
+_DATE_FORMATS = [
+    "%Y-%m-%d",  # 2024-08-15
+    "%m/%d/%Y",  # 8/15/2024 or 08/15/2024
+    "%m-%d-%Y",  # 8-15-2024
+    "%m/%d/%y",  # 8/15/24
+    "%Y/%m/%d",  # 2024/08/15
+    "%m-%d-%y",  # 8-15-24
+]
+
+def parse_date_any(value: str) -> date:
+    s = (value or "").strip()
+    # Quick path for strict ISO
+    try:
+        return date.fromisoformat(s)  # works for YYYY-MM-DD
+    except Exception:
+        pass
+    # Try common US formats
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"Unsupported date format: {value!r}")
+
+def csv_response(rows, filename, header, title: str | None = None):
+    """rows = iterable of sequences (matching header order)
+       If title is provided, it's written as the first row, then a blank row, then header + data."""
+    import csv, io
+    from flask import Response
+
     si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(header)
-    writer.writerows(rows)
+    w = csv.writer(si)
+
+    if title:
+        w.writerow([title])
+        w.writerow([])
+
+    w.writerow(header)
+    w.writerows(rows)
     out = si.getvalue()
     si.close()
     return Response(
         out,
         mimetype="text/csv",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
 
 
 # Map our types to an iCal CATEGORY (and vice versa)

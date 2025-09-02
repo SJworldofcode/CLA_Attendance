@@ -9,43 +9,71 @@
     rel="stylesheet">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
   <div class="container">
-    <a class="navbar-brand" href="{{ url_for('dashboard') }}">Attendance</a>
+    <a class="navbar-brand" href="{{ url_for('dashboard') }}">CLA Attendance</a>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="navMain">
-      <ul class="navbar-nav me-auto">
-        {% if current_user.is_authenticated %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('teacher.take_attendance') }}">Take Attendance</a>
-          </li>
+<ul class="navbar-nav me-auto">
+  {% if current_user.is_authenticated %}
+    <!-- Always show Take Attendance -->
+    <li class="nav-item">
+      <a class="nav-link {% if request.endpoint == 'teacher.take_attendance' %}active{% endif %}"
+         href="{{ url_for('teacher.take_attendance') }}">Take Attendance</a>
+    </li>
 
-          {% if current_user.role == 'admin' %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Admin
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="adminMenu">
-                <li><a class="dropdown-item" href="{{ url_for('admin.students') }}">Students</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.users_list') }}">Users</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.years_list') }}">School Years</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.reports') }}">Reports</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.calendar_list') }}">Calendar</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_csv') }}">Calendar: Import CSV</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_form') }}">Calendar: Import ICS</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.calendar_export') }}">Calendar: Export ICS</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.attendance_import_csv') }}">Attendance: Import CSV</a></li>
-              </ul>
-            </li>
-          {% endif %}
-        {% endif %}
-      </ul>
+    {% if current_user.role == 'admin' %}
+      <!-- OPTION A (recommended): show Reports top-level for admins too
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint in ['admin.reports'] %}active{% endif %}"
+           href="{{ url_for('admin.reports') }}">Reports</a>
+      </li> -->
+
+      <!-- Admin dropdown for everything else -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          Admin
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="adminMenu">
+          <li><a class="dropdown-item" href="{{ url_for('admin.students') }}">Students</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.users_list') }}">Users</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.years_list') }}">School Years</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.calendar_list') }}">Calendar</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.reports') }}">Reports</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_csv') }}">Calendar: Import CSV</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_form') }}">Calendar: Import ICS</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.calendar_export') }}">Calendar: Export ICS</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('admin.attendance_import_csv') }}">Attendance: Import CSV</a></li>
+        </ul>
+      </li>
+
+      {# --- OPTION B instead of OPTION A ---
+         If you prefer Reports ONLY in the admin dropdown for admins,
+         remove the top-level Reports <li> and add this inside the dropdown:
+         <li><a class="dropdown-item" href="{{ url_for('admin.reports') }}">Reports</a></li>
+      #}
+
+    {% else %}
+      <!-- Teacher: top-level Reports next to Attendance -->
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint in ['admin.reports'] %}active{% endif %}"
+           href="{{ url_for('admin.reports') }}">Reports</a>
+      </li>
+    {% endif %}
+  {% endif %}
+</ul>
+
+<!--
+      {% if current_user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('admin.reports') }}">Reports</a>
+        </li>
+      {% endif %} -->
 
       <ul class="navbar-nav ms-auto">
         {% if current_user.is_authenticated %}

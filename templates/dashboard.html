@@ -1,5 +1,53 @@
 {% extends "base.html" %}
 {% block content %}
-<h3 class="mb-3">Welcome, {{ user.username }} ({{ user.role }})</h3>
-<p class="text-muted">Use the navigation to manage students or take attendance.</p>
+<h3 class="mb-4">Welcome, {{ current_user.username }} ({{ current_user.role }})</h3>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <a class="text-decoration-none" href="{{ url_for('teacher.take_attendance') }}">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h5>Take Attendance</h5><p class="mb-0 text-muted">Mark today’s statuses</p>
+      </div></div>
+    </a>
+  </div>
+
+  {% if current_user.role == 'admin' %}
+  <div class="col-md-4">
+    <a class="text-decoration-none" href="{{ url_for('admin.reports') }}">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h5>Reports</h5><p class="mb-0 text-muted">Daily summary & % by range</p>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="text-decoration-none" href="{{ url_for('admin.users_list') }}">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h5>Users</h5><p class="mb-0 text-muted">Add teachers, reset passwords</p>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="text-decoration-none" href="{{ url_for('admin.calendar_import_csv') }}">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h5>Calendar CSV Import</h5><p class="mb-0 text-muted">Bulk-load holidays & days</p>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="text-decoration-none" href="{{ url_for('admin.attendance_import_csv') }}">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h5>Attendance CSV Import</h5><p class="mb-0 text-muted">Bulk-load historical logs</p>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="text-decoration-none" href="{{ url_for('admin.years_list') }}">
+      <div class="card shadow-sm h-100"><div class="card-body">
+        <h5>School Years</h5><p class="mb-0 text-muted">Define 2024-25, Summer 2025…</p>
+      </div></div>
+    </a>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}
+
