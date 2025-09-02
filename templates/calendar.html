@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h4 class="me-auto">School Calendar</h4>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_bulk') }}">Bulk Edit</a>
+    <a class="btn btn-primary" href="{{ url_for('admin.calendar_new') }}">Add Day</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_import_form') }}">Import .ics</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_export') }}">Export .ics</a>
+
+  </div>
+</div>
+<table class="table table-sm table-striped align-middle">
+  <thead><tr><th>Date</th><th>Type</th><th>Description</th><th style="width:120px"></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.date.isoformat() }}</td>
+      <td>{{ r.type }}</td>
+      <td>{{ r.description or '' }}</td>
+      <td class="text-end">
+        <form method="post" action="{{ url_for('admin.calendar_delete', cid=r.id) }}"
+              onsubmit="return confirm('Delete this entry?');" class="d-inline">
+          <button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

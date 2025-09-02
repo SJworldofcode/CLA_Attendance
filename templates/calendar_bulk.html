@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">Bulk Edit Days (range)</h4>
+<form method="post" class="row g-3">
+  <div class="col-md-3">
+    <label class="form-label">Start</label>
+    <input type="date" name="start" class="form-control" required>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">End</label>
+    <input type="date" name="end" class="form-control" required>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Type</label>
+    <select name="type" class="form-select">
+      {% for t in ['Regular','Holiday','In-service','Closed'] %}
+        <option value="{{t}}">{{t}}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Description</label>
+    <input name="description" class="form-control" placeholder="Optional">
+  </div>
+  <div class="col-12">
+    <button class="btn btn-primary">Apply</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_list') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

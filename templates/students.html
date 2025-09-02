@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h4 class="me-auto">Students</h4>
+  <a class="btn btn-primary" href="{{ url_for('admin.student_new') }}">Add Student</a>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin.students_export') }}">Export CSV</a>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin.students_import') }}">Import CSV</a>
+
+</div>
+<form class="row g-2 mb-3">
+  <div class="col-auto">
+    <input name="q" value="{{ q }}" class="form-control" placeholder="Search name/grade">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary">Search</button>
+  </div>
+</form>
+<table class="table table-sm table-striped align-middle">
+  <thead><tr><th>Name</th><th>Grade</th><th>Active</th><th style="width:160px"></th></tr></thead>
+  <tbody>
+  {% for s in rows %}
+    <tr>
+      <td>{{ s.last_name }}, {{ s.first_name }}</td>
+      <td>{{ s.grade or '' }}</td>
+      <td>{{ 'Yes' if s.active else 'No' }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-secondary" href="{{ url_for('admin.student_edit', sid=s.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin.student_delete', sid=s.id) }}" class="d-inline"
+              onsubmit="return confirm('Delete this student?');">
+          <button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

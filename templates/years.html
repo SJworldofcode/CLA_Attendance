@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h4 class="me-auto">School Years</h4>
+  <a class="btn btn-primary" href="{{ url_for('admin.years_new') }}">Add Year</a>
+</div>
+<table class="table table-sm table-striped align-middle">
+  <thead><tr><th>Name</th><th>Start</th><th>End</th><th>Active</th><th style="width:160px"></th></tr></thead>
+  <tbody>
+    {% for y in rows %}
+    <tr>
+      <td>{{ y.name }}</td>
+      <td>{{ y.start_date.isoformat() }}</td>
+      <td>{{ y.end_date.isoformat() }}</td>
+      <td>{{ 'Yes' if y.active else 'No' }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-secondary" href="{{ url_for('admin.years_edit', yid=y.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin.years_delete', yid=y.id) }}" class="d-inline" onsubmit="return confirm('Delete this year?');">
+          <button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

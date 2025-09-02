@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">Import School Calendar (CSV)</h4>
+<p class="text-muted">CSV header: <code>date,type,description,year</code>. The <code>year</code> column is optional if you pick a School Year below. Dates must be YYYY-MM-DD.</p>
+<form method="post" enctype="multipart/form-data" class="row g-3">
+  <div class="col-md-5">
+    <input type="file" name="file" accept=".csv" class="form-control" required>
+  </div>
+  <div class="col-md-3">
+    <select name="school_year_id" class="form-select">
+      <option value="">(Infer by date or CSV year)</option>
+      {% for y in years %}
+        <option value="{{ y.id }}">{{ y.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4">
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="mode" id="modeMerge" value="merge" checked>
+      <label class="form-check-label" for="modeMerge">Merge (upsert)</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="mode" id="modeReplace" value="replace">
+      <label class="form-check-label" for="modeReplace">Replace (overwrite matching dates)</label>
+    </div>
+  </div>
+  <div class="col-12">
+    <button class="btn btn-primary">Import</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_list') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

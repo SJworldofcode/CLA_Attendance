@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">Import Attendance (CSV)</h4>
+<p class="text-muted">CSV header: <code>date,last_name,first_name,grade,status,notes,year</code>. The <code>year</code> column is optional if you pick a School Year below or if it can be inferred from the date.</p>
+<form method="post" enctype="multipart/form-data" class="row g-3">
+  <div class="col-md-6">
+    <input type="file" name="file" accept=".csv" class="form-control" required>
+  </div>
+  <div class="col-md-6">
+    <select name="school_year_id" class="form-select">
+      <option value="">(Infer by date or CSV year)</option>
+      {% for y in years %}
+        <option value="{{ y.id }}">{{ y.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12">
+    <button class="btn btn-primary">Import</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.reports') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

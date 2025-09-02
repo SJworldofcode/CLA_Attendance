@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">Take Attendance</h4>
+
+{% if non_school %}
+  <div class="alert alert-warning">
+    This date is marked as a <strong>non-school day</strong>. Attendance is read-only.
+  </div>
+{% endif %}
+
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto">
+    <input type="date" name="date" value="{{ selected.isoformat() }}" class="form-control">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary">Go</button>
+  </div>
+</form>
+
+<form method="post">
+  <input type="hidden" name="date" value="{{ selected.isoformat() }}">
+  <div class="d-flex gap-2 mb-2">
+    <button class="btn btn-sm btn-outline-success" type="button" onclick="bulk('Present')">All Present</button>
+    <button class="btn btn-sm btn-outline-danger" type="button" onclick="bulk('Absent')">All Absent</button>
+    <button class="btn btn-sm btn-outline-warning" type="button" onclick="bulk('Tardy')">All Tardy</button>
+  </div>
+  <table class="table table-sm table-striped align-middle">
+    <thead><tr><th>Name</th><th style="width:220px">Status</th><th>Notes</th></tr></thead>
+    <tbody>
+      {% for s in students %}
+      {% set rec = existing.get(s.id) %}
+      <tr>
+        <td>{{ s.last_name }}, {{ s.first_name }}</td>
+        <td>
+          <select class="form-select form-select-sm" name="status_{{ s.id }}">
+            {% for opt in ['Present','Absent','Tardy'] %}
+              <option value="{{ opt }}" {% if rec and rec.status==opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <input class="form-control form-control-sm" name="notes_{{ s.id }}" value="{{ rec.notes if rec else '' }}">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button class="btn btn-primary" {% if non_school %}disabled title="Non-school day"{% endif %}>
+  Save Attendance
+</button>
+</form>
+
+<script>
+function bulk(val) {
+  document.querySelectorAll('select[name^="status_"]').forEach(s => s.value = val);
+}
+</script>
+{% endblock %}

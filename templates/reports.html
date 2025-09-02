@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">Reports</h4>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h5>Daily Summary</h5>
+        <form class="row g-2 mb-2">
+          <div class="col-auto">
+            <input type="date" name="date" value="{{ day.isoformat() }}" class="form-control">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-secondary">Go</button>
+          </div>
+        </form>
+        <ul class="list-group mb-2">
+          {% set counts = dict(daily) %}
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Present</span><span>{{ counts.get('Present',0) }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Absent</span><span>{{ counts.get('Absent',0) }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Tardy</span><span>{{ counts.get('Tardy',0) }}</span>
+          </li>
+        </ul>
+        <table class="table table-sm">
+          <thead><tr><th>Student</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>
+          {% for r in daily_records %}
+            <tr>
+              <td>{{ r.student.last_name }}, {{ r.student.first_name }}</td>
+              <td>{{ r.status }}</td>
+              <td>{{ r.notes or '' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h5>Per-Student Attendance %</h5>
+        <form class="row g-2 mb-2">
+          <div class="col-auto">
+            <input type="date" name="start" value="{{ start.isoformat() if start else '' }}" class="form-control" required>
+          </div>
+          <div class="col-auto">
+            <input type="date" name="end" value="{{ end.isoformat() if end else '' }}" class="form-control" required>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-secondary">Calculate</button>
+            {% if start and end %}
+              <div class="mb-2">
+                <a class="btn btn-sm btn-outline-success"
+                   href="{{ url_for('admin.attendance_export', start=start.isoformat(), end=end.isoformat()) }}">
+                   Export CSV ({{ start.isoformat() }} → {{ end.isoformat() }})
+                </a>
+              </div>
+            {% endif %}
+
+          </div>
+          <input type="hidden" name="date" value="{{ day.isoformat() }}">
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Student</th><th>Present</th><th>Total</th><th>%</th></tr></thead>
+          <tbody>
+          {% for sid, present, total, pct in stats %}
+            <tr>
+              <td>{{ students_by_id.get(sid, sid) }}</td>
+              <td>{{ present }}</td>
+              <td>{{ total }}</td>
+              <td>{{ pct if pct is not none else '' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
