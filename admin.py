@@ -479,10 +479,19 @@ def attendance_import_csv():
             year_name = (row.get("year") or "").strip()
 
             # find student
-            s = Student.query.filter_by(last_name=ln, first_name=fn, grade=gr).first()
+            s = Student.query.filter(
+                func.lower(Student.last_name) == ln.lower(),
+                func.lower(Student.first_name) == fn.lower()
+            ).first()
+
             if not s:
-                skipped += 1            # no matching student
-                continue
+                # create if missing
+                s = Student(first_name=fn.title(), last_name=ln.title(), current_grade=gr)
+                db.session.add(s)
+            else:
+                # update current grade if changed
+                if gr and s.current_grade != gr:
+                    s.current_grade = gr
 
             # resolve year
             if year_name:
@@ -503,8 +512,10 @@ def attendance_import_csv():
                 created += 1
             else:
                 updated += 1
+
             rec.status = status
             rec.notes = notes
+            rec.grade_at_time = gr
             if sy_id and rec.school_year_id != sy_id:
                 rec.school_year_id = sy_id
 
