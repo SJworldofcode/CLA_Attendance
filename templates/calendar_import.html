@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h4 class="card-title mb-3">Import School Calendar (.ics)</h4>
+          <p class="text-muted">Upload an iCalendar file to add or update days (Regular, Holiday, In-service, Closed). Choose Merge to upsert, or Replace to overwrite matching dates.</p>
+          <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.calendar_import') }}">
+            <div class="mb-3">
+              <label class="form-label">.ics file</label>
+              <input type="file" class="form-control" name="file" accept=".ics" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mode</label>
+              <select class="form-select" name="mode">
+                <option value="merge" selected>Merge (upsert)</option>
+                <option value="replace">Replace (overwrite matching dates)</option>
+              </select>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" type="submit">Import</button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_list') }}">Back to Calendar</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

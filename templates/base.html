@@ -26,6 +26,9 @@
       <a class="nav-link {% if request.endpoint == 'teacher.take_attendance' %}active{% endif %}"
          href="{{ url_for('teacher.take_attendance') }}">Take Attendance</a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('calendar_ui.calendar_month') }}">Calendar</a>
+    </li>
 
     {% if current_user.role == 'admin' %}
       <!-- OPTION A (recommended): show Reports top-level for admins too
@@ -46,8 +49,8 @@
           <li><a class="dropdown-item" href="{{ url_for('admin.calendar_list') }}">Calendar</a></li>
           <li><a class="dropdown-item" href="{{ url_for('admin.reports') }}">Reports</a></li>
           <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_csv') }}">Calendar: Import CSV</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_form') }}">Calendar: Import ICS</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('admin.calendar_export') }}">Calendar: Export ICS</a></li>
+      <!--    <li><a class="dropdown-item" href="{{ url_for('admin.calendar_import_form') }}">Calendar: Import ICS</a></li> -->
+        <!--  <li><a class="dropdown-item" href="{{ url_for('admin.calendar_export') }}">Calendar: Export ICS</a></li> -->
           <li><a class="dropdown-item" href="{{ url_for('admin.attendance_import_csv') }}">Attendance: Import CSV</a></li>
         </ul>
       </li>

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('calendar_ui.calendar_month', year=prev_y, month=prev_m) }}">&laquo; Prev</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('calendar_ui.calendar_month', year=next_y, month=next_m) }}">Next &raquo;</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('calendar_ui.calendar_month') }}">Today</a>
+    </div>
+
+    <h4 class="mb-0">
+      {{ ("%02d" % month) }}/{{ year }}
+    </h4>
+
+    <form class="d-flex gap-2" method="get" action="{{ url_for('calendar_ui.calendar_month') }}">
+      <input class="form-control" type="number" name="month" min="1" max="12" value="{{ month }}" style="width: 100px;">
+      <input class="form-control" type="number" name="year" min="2000" max="2100" value="{{ year }}" style="width: 120px;">
+      <button class="btn btn-primary" type="submit">Go</button>
+    </form>
+  </div>
+
+  <div class="mb-3 small">
+    <span class="badge {{ classes['Holiday'] }}">Holiday</span>
+    <span class="badge {{ classes['In-service'] }}">In-service</span>
+    <span class="badge {{ classes['Closed'] }}">Closed</span>
+    <span class="badge {{ classes['Regular'] }}">Regular</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle bg-white">
+      <thead class="table-light">
+        <tr class="text-center">
+          <th style="width:14.28%">Sun</th>
+          <th style="width:14.28%">Mon</th>
+          <th style="width:14.28%">Tue</th>
+          <th style="width:14.28%">Wed</th>
+          <th style="width:14.28%">Thu</th>
+          <th style="width:14.28%">Fri</th>
+          <th style="width:14.28%">Sat</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in weeks %}
+        <tr>
+          {% for d in week %}
+          {% set muted = '' if in_month(d) else 'opacity-50' %}
+          {% set today_cls = 'border border-2 border-primary' if d == today else '' %}
+          <td class="{{ muted }} align-top p-2 {{ today_cls }}">
+            <div class="d-flex justify-content-between">
+              <div class="fw-semibold">{{ d.day }}</div>
+            </div>
+            {% for ev in by_date.get(d, []) %}
+              {% set badge = classes.get(ev.type, 'bg-secondary') %}
+              <div class="mt-1">
+                <span class="badge {{ badge }} rounded-pill">
+                  {{ ev.type }}{% if ev.description %} – {{ ev.description }}{% endif %}
+                </span>
+              </div>
+            {% endfor %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

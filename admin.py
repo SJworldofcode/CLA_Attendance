@@ -21,14 +21,13 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 # ---------- Access control ----------
 @admin_bp.before_request
 def require_admin():
+    """Gate admin pages: allow reports to all authenticated users; the rest admin-only."""
+    from flask import request
     if not current_user.is_authenticated:
         return redirect(url_for("auth.login"))
-
-    # Allow /admin/reports for all authenticated users (teachers too)
+    # Allow any logged-in user (teacher/admin) to access reports
     if request.endpoint == "admin.reports":
         return None
-
-    # Everything else stays admin-only
     if current_user.role != "admin":
         return ("Forbidden", 403)
 
@@ -44,7 +43,7 @@ def students():
             or_(
                 Student.first_name.ilike(like),
                 Student.last_name.ilike(like),
-                Student.grade.ilike(like),
+                Student.current_grade.ilike(like),
             )
         )
     rows = query.order_by(Student.last_name, Student.first_name).all()
@@ -57,7 +56,7 @@ def student_new():
         s = Student(
             first_name=request.form["first_name"].strip(),
             last_name=request.form["last_name"].strip(),
-            grade=(request.form.get("grade") or "").strip() or None,
+            current_grade=(request.form.get("grade") or "").strip() or None,
             active=bool(request.form.get("active")),
         )
         db.session.add(s)
@@ -73,7 +72,7 @@ def student_edit(sid):
     if request.method == "POST":
         s.first_name = request.form["first_name"].strip()
         s.last_name = request.form["last_name"].strip()
-        s.grade = (request.form.get("grade") or "").strip() or None
+        s.current_grade = (request.form.get("grade") or "").strip() or None
         s.active = bool(request.form.get("active"))
         db.session.commit()
         flash("Student updated", "success")
@@ -95,7 +94,8 @@ def student_delete(sid):
 def students_export():
     rows = Student.query.order_by(Student.last_name, Student.first_name).all()
     data = [
-        [s.first_name, s.last_name, s.grade or "", "1" if s.active else "0"] for s in rows
+        [s.first_name, s.last_name, s.current_grade or "", "1" if s.active else "0"]
+        for s in rows
     ]
     header = ["first_name", "last_name", "grade", "active"]
     return csv_response(data, "student_roster.csv", header)
@@ -119,17 +119,18 @@ def students_import():
             act = (row.get("active") or "1").strip()
             if not fn or not ln:
                 continue
-            rec = Student.query.filter_by(first_name=fn, last_name=ln, grade=gr).first()
+            rec = Student.query.filter_by(first_name=fn, last_name=ln).first()
             if rec:
-                rec.active = act in ("1", "true", "True", "yes", "YES")
+                rec.current_grade = gr
+                rec.active = act.lower() in ("1", "true", "yes")
                 updated += 1
             else:
                 db.session.add(
                     Student(
                         first_name=fn,
                         last_name=ln,
-                        grade=gr,
-                        active=(act in ("1", "true", "True", "yes", "YES")),
+                        current_grade=gr,
+                        active=(act.lower() in ("1", "true", "yes")),
                     )
                 )
                 created += 1
@@ -431,12 +432,13 @@ def attendance_export():
     for r in q:
         s = r.student
         year_name = r.school_year.name if r.school_year else ""
+        grade_out = (r.grade_at_time or s.current_grade or "")
         data.append(
             [
                 r.date.isoformat(),
                 s.last_name,
                 s.first_name,
-                s.grade or "",
+                grade_out,
                 r.status,
                 r.notes or "",
                 year_name,
@@ -478,20 +480,11 @@ def attendance_import_csv():
             notes = (row.get("notes") or "").strip() or None
             year_name = (row.get("year") or "").strip()
 
-            # find student
-            s = Student.query.filter(
-                func.lower(Student.last_name) == ln.lower(),
-                func.lower(Student.first_name) == fn.lower()
-            ).first()
-
+            # find student by name only
+            s = Student.query.filter_by(last_name=ln, first_name=fn).first()
             if not s:
-                # create if missing
-                s = Student(first_name=fn.title(), last_name=ln.title(), current_grade=gr)
-                db.session.add(s)
-            else:
-                # update current grade if changed
-                if gr and s.current_grade != gr:
-                    s.current_grade = gr
+                skipped += 1            # no matching student
+                continue
 
             # resolve year
             if year_name:
@@ -512,7 +505,6 @@ def attendance_import_csv():
                 created += 1
             else:
                 updated += 1
-
             rec.status = status
             rec.notes = notes
             rec.grade_at_time = gr

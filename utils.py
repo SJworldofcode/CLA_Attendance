@@ -1,27 +1,62 @@
 # utils.py
-import csv, io
+from datetime import datetime, date, timedelta
 from flask import Response
-from datetime import date, timedelta, datetime
-from typing import Iterable, Tuple
-from icalendar import Calendar, Event
+import csv as _csv
+import io as _io
 
+# ---------- CSV helper ----------
+def csv_response(rows, filename, header, title: str | None = None):
+    """Return a Flask Response containing CSV.
+    - rows: iterable of sequences matching header
+    - filename: download name
+    - header: list[str]
+    - title: optional first line (then a blank line)
+    """
+    sio = _io.StringIO()
+    w = _csv.writer(sio)
+    if title:
+        w.writerow([title])
+        w.writerow([])
+    w.writerow(header)
+    for r in rows:
+        w.writerow(list(r))
+    data = sio.getvalue()
+    sio.close()
+    return Response(data, mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+# ---------- Date parsing (flexible) ----------
 _DATE_FORMATS = [
     "%Y-%m-%d",  # 2024-08-15
-    "%m/%d/%Y",  # 8/15/2024 or 08/15/2024
-    "%m-%d-%Y",  # 8-15-2024
-    "%m/%d/%y",  # 8/15/24
-    "%Y/%m/%d",  # 2024/08/15
-    "%m-%d-%y",  # 8-15-24
+    "%m/%d/%Y",  # 8/15/2024
+    "%m-%d-%Y",
+    "%m/%d/%y",
+    "%Y/%m/%d",
+    "%m-%d-%y",
 ]
+
+def _try_excel_serial(s: str):
+    try:
+        n = int(s)
+    except Exception:
+        return None
+    # Excel 1900-date system: 1 -> 1899-12-31; common workaround base is 1899-12-30
+    if 1 <= n <= 100000:
+        return date(1899, 12, 30) + timedelta(days=n)
+    return None
 
 def parse_date_any(value: str) -> date:
     s = (value or "").strip()
-    # Quick path for strict ISO
+    # ISO fast-path
     try:
-        return date.fromisoformat(s)  # works for YYYY-MM-DD
+        return date.fromisoformat(s)
     except Exception:
         pass
-    # Try common US formats
+    # Excel serials
+    d = _try_excel_serial(s)
+    if d:
+        return d
+    # Common formats
     for fmt in _DATE_FORMATS:
         try:
             return datetime.strptime(s, fmt).date()
@@ -29,126 +64,101 @@ def parse_date_any(value: str) -> date:
             continue
     raise ValueError(f"Unsupported date format: {value!r}")
 
-def csv_response(rows, filename, header, title: str | None = None):
-    """rows = iterable of sequences (matching header order)
-       If title is provided, it's written as the first row, then a blank row, then header + data."""
-    import csv, io
-    from flask import Response
-
-    si = io.StringIO()
-    w = csv.writer(si)
-
-    if title:
-        w.writerow([title])
-        w.writerow([])
-
-    w.writerow(header)
-    w.writerows(rows)
-    out = si.getvalue()
-    si.close()
-    return Response(
-        out,
-        mimetype="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
-    )
-
-
-
-# Map our types to an iCal CATEGORY (and vice versa)
-ICAL_TYPE_MAP = {
-    "Holiday": "Holiday",
-    "In-service": "In-Service",
-    "Closed": "Closed",
-    "Regular": "Regular"
-}
-ICAL_TYPE_MAP_REVERSE = {v.lower(): k for k, v in ICAL_TYPE_MAP.items()}
-
-def calendar_rows_to_ics(rows: Iterable[Tuple[date, str, str]]) -> bytes:
+# ---------- ICS helpers ----------
+def calendar_rows_to_ics(rows):
+    """Build a simple ICS bytes payload from rows of (date, type, description).
+    Creates all-day events (DTSTART/DTEND date values). Avoids DTSTAMP to
+    sidestep parser quirks.
     """
-    rows: iterable of (day, type, description)
-    Returns .ics bytes with all-day VEVENTs. dtend is exclusive (next day).
-    """
-    cal = Calendar()
-    cal.add("prodid", "-//CLA Attendance//Calendar Export//EN")
-    cal.add("version", "2.0")
+    def fmt(d: date) -> str:
+        return d.strftime("%Y%m%d")
+
+    def clean(s: str) -> str:
+        return "".join(ch for ch in s if ch.isalnum())
+
+    lines = []
+    add = lines.append
+    add("BEGIN:VCALENDAR")
+    add("PRODID:-//CLA Attendance//Calendar Export//EN")
+    add("VERSION:2.0")
+    add("CALSCALE:GREGORIAN")
+    add("METHOD:PUBLISH")
 
     for d, t, desc in rows:
-        ev = Event()
-        # all-day event: date-only DTSTART/DTEND
-        ev.add("dtstart", d)
-        ev.add("dtend", d + timedelta(days=1))  # exclusive end
-        # Summary: "Holiday – Labor Day" (or just "Holiday")
+        dtstart = fmt(d)
+        dtend = fmt(d + timedelta(days=1))  # exclusive end
+        uid = f"{dtstart}-{clean(t)}-CLA@local"
+        add("BEGIN:VEVENT")
+        add(f"UID:{uid}")
+        # Encode type + description into SUMMARY and CATEGORIES
         summary = t if not desc else f"{t} – {desc}"
-        ev.add("summary", summary)
-        # categories to carry the type
-        ev.add("categories", ICAL_TYPE_MAP.get(t, t))
-        cal.add_component(ev)
+        add(f"SUMMARY:{summary}")
+        add(f"CATEGORIES:{t}")
+        add(f"DTSTART;VALUE=DATE:{dtstart}")
+        add(f"DTEND;VALUE=DATE:{dtend}")
+        add("END:VEVENT")
 
-    return cal.to_ical()
+    add("END:VCALENDAR")
+    text = "\r\n".join(lines) + "\r\n"
+    return text.encode("utf-8")
 
-def ics_to_calendar_rows(ics_bytes: bytes) -> Iterable[Tuple[date, str, str]]:
+def ics_to_calendar_rows(ics_bytes: bytes):
+    """Parse a simple ICS (all-day events). Yield (date, type, description).
+    Recognizes DTSTART, SUMMARY, CATEGORIES. SUMMARY like "Type – Desc" is split.
     """
-    Parse .ics and yield (date, type, description) for all-day events.
-    If a VEVENT spans multiple days, yield each day.
-    Type is taken from CATEGORIES (if present) or guessed from SUMMARY.
-    """
-    cal = Calendar.from_ical(ics_bytes)
-    for comp in cal.walk():
-        if comp.name != "VEVENT":
+    text = ics_bytes.decode("utf-8", errors="ignore")
+    # Unfold folded lines (RFC 5545)
+    unfolded = []
+    for line in text.splitlines():
+        if (line.startswith(" ") or line.startswith("\t")) and unfolded:
+            unfolded[-1] += line.lstrip()
+        else:
+            unfolded.append(line)
+
+    cur_date = None
+    cur_type = None
+    cur_desc = ""
+    in_event = False
+
+    for line in unfolded:
+        ls = line.strip()
+        if ls == "BEGIN:VEVENT":
+            cur_date, cur_type, cur_desc = None, None, ""
+            in_event = True
             continue
-        dtstart = comp.get("dtstart")
-        dtend = comp.get("dtend")
-        if not dtstart:
+        if ls == "END:VEVENT":
+            if cur_date and cur_type:
+                yield (cur_date, cur_type, cur_desc or "")
+            in_event = False
+            continue
+        if not in_event:
             continue
 
-        # Normalize to date objects (handle datetime too)
-        def _as_date(x):
-            v = x.dt if hasattr(x, "dt") else x
-            if hasattr(v, "date"):
-                return v.date()
-            return v
-
-        start_d = _as_date(dtstart)
-        # Default end = start+1 if missing
-        end_d = _as_date(dtend) if dtend else (start_d + timedelta(days=1))
-        # Ensure date-only (strip tz)
-        if not isinstance(start_d, date):
-            start_d = start_d.date()
-        if not isinstance(end_d, date):
-            end_d = end_d.date()
-
-        # Title/type
-        summary = str(comp.get("summary", "")).strip()
-        categories = comp.get("categories")
-        cat = ""
-        if categories:
-            # categories may be list-like
-            cat = str(categories[0] if isinstance(categories, (list, tuple)) else categories).strip()
-        # Map back to our types; fall back to guessing from summary
-        t = ICAL_TYPE_MAP_REVERSE.get(cat.lower()) if cat else None
-        if not t:
-            lower_sum = summary.lower()
-            if "holiday" in lower_sum:
-                t = "Holiday"
-            elif "service" in lower_sum or "in service" in lower_sum:
-                t = "In-service"
-            elif "closed" in lower_sum:
-                t = "Closed"
-            else:
-                t = "Regular"
-
-        # Derive description = part after " – " if present
-        desc = ""
-        if "–" in summary:
-            desc = summary.split("–", 1)[1].strip()
-        elif "-" in summary:
-            # some feeds use hyphen
-            parts = summary.split("-", 1)
+        if ls.startswith("DTSTART"):  # DTSTART;VALUE=DATE:YYYYMMDD or DTSTART:YYYYMMDD
+            parts = ls.split(":", 1)
             if len(parts) == 2:
-                desc = parts[1].strip()
+                ymd = parts[1]
+                try:
+                    y, m, d = int(ymd[:4]), int(ymd[4:6]), int(ymd[6:8])
+                    cur_date = date(y, m, d)
+                except Exception:
+                    cur_date = None
+            continue
 
-        # Expand multi-day (dtend exclusive)
-        cur = start_d
-        while cur < end_d:
-            yield (cur, t, desc)
-            cur += timedelta(days=1)
+        if ls.startswith("CATEGORIES:"):
+            cur_type = ls.split(":", 1)[1].strip()
+            continue
+
+        if ls.startswith("SUMMARY:"):
+            val = ls.split(":", 1)[1].strip()
+            if " – " in val:
+                maybe_t, maybe_desc = val.split(" – ", 1)
+                if not cur_type:
+                    cur_type = maybe_t.strip()
+                cur_desc = maybe_desc.strip()
+            else:
+                if not cur_type:
+                    cur_type = val
+                else:
+                    cur_desc = val
+            continue

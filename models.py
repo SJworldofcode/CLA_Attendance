@@ -30,23 +30,36 @@ class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100), nullable=False, index=True)
     last_name  = db.Column(db.String(100), nullable=False, index=True)
-    # Keep current grade optional (can drift); not part of identity
+    # canonical current grade on the roster
     current_grade = db.Column(db.String(10), nullable=True, index=True)
+    # roster status
+    active = db.Column(db.Boolean, nullable=False, default=True)
 
-    # Identity = name only (or name + an external stable id later)
+    # Identity = name (you can add an external_id later if needed)
     __table_args__ = (
         db.UniqueConstraint('first_name','last_name', name='uq_student_identity'),
     )
+
 
 # --- Attendance ---
 class Attendance(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False, index=True)
     date       = db.Column(db.Date, nullable=False, index=True)
-    status     = db.Column(db.String(20), nullable=False)
+    status     = db.Column(db.String(20), nullable=False)  # Present/Absent/Tardy
     notes      = db.Column(db.Text)
-    # snapshot of grade at the time of attendance (optional but useful)
+    # snapshot of grade at the time of attendance (optional, filled by imports or UI)
     grade_at_time = db.Column(db.String(10), nullable=True)
+
+    # partition by school year for reports/exports
+    school_year_id = db.Column(db.Integer, db.ForeignKey('school_year.id'), index=True)
+
+    student = db.relationship("Student", backref="attendance_records", lazy=True)
+    school_year = db.relationship("SchoolYear", lazy=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "date", name="uq_attendance_student_date"),
+    )
 
 # --- School Calendar ---
 class SchoolCalendar(db.Model):

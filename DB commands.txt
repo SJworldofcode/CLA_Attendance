@@ -1,0 +1,44 @@
+Do this (PowerShell on Windows)
+$env:FLASK_APP = "wsgi.py"
+
+# 1) Create any new/missing columns safely (SQLite)
+flask upgrade-db
+
+# 2) Make sure you have your School Years defined in the UI:
+#    Go to /admin/years and add "2024-25", "Summer 2025", etc.
+
+# 3) Attach existing attendance rows to the right School Year (by date)
+flask backfill-years
+
+When you don’t need this
+
+If you already ran flask upgrade-db since updating models.py, you can skip it now and just restart.
+
+If you don’t mind wiping test data (optional reset)
+# Stop the server, delete your SQLite file (adjust path if different)
+del .\instance\attendance.db
+
+$env:FLASK_APP = "wsgi.py"
+flask init-db
+flask create-admin   # creates admin/admin123 (or whatever your command sets)
+
+# Then re-import students/calendar/attendance via the UI
+
+
+
+
+
+Wire-up (quick)
+Put calendar_ui.py next to app.py, then in create_app():
+from calendar_ui import calendar_ui
+app.register_blueprint(calendar_ui)
+
+
+Add a navbar link (in base.html, inside the logged-in block):
+<li class="nav-item">
+  <a class="nav-link" href="{{ url_for('calendar_ui.calendar_month') }}">Calendar</a>
+</li>
+
+Copy the templates into your project’s templates/ folder.
+
+Replace your existing utils.py with the one above (it includes parse_date_any, improved ICS helpers, and csv_response with optional title).

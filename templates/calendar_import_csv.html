@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h4 class="card-title mb-3">Import School Calendar (CSV)</h4>
+          <p class="text-muted">CSV header must be: <code>date,type,description,year</code>. Dates like <code>2024-08-15</code> or <code>8/15/2024</code> are accepted.</p>
+          <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.calendar_import_csv') }}">
+            <div class="mb-3">
+              <label class="form-label">CSV file</label>
+              <input type="file" class="form-control" name="file" accept=".csv" required>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Attach to School Year (optional)</label>
+                <select class="form-select" name="school_year_id">
+                  <option value="">— Infer from date —</option>
+                  {% for y in years %}
+                  <option value="{{ y.id }}">{{ y.name }} ({{ y.start_date }} → {{ y.end_date }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Mode</label>
+                <select class="form-select" name="mode">
+                  <option value="merge" selected>Merge (upsert)</option>
+                  <option value="replace">Replace (overwrite matching dates)</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3 small text-muted">
+              Types: <code>Regular</code>, <code>Holiday</code>, <code>In-service</code>, <code>Closed</code>.
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" type="submit">Import CSV</button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_list') }}">Back to Calendar</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

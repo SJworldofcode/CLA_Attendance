@@ -1,22 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h4 class="mb-3">Import Attendance (CSV)</h4>
-<p class="text-muted">CSV header: <code>date,last_name,first_name,grade,status,notes,year</code>. The <code>year</code> column is optional if you pick a School Year below or if it can be inferred from the date.</p>
-<form method="post" enctype="multipart/form-data" class="row g-3">
-  <div class="col-md-6">
-    <input type="file" name="file" accept=".csv" class="form-control" required>
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h4 class="card-title mb-3">Import Attendance (CSV)</h4>
+          <p class="text-muted">CSV header must be: <code>date,last_name,first_name,grade,status,notes,year</code>. Dates like <code>2024-08-15</code> or <code>8/15/2024</code> are accepted.</p>
+          <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.attendance_import_csv') }}">
+            <div class="mb-3">
+              <label class="form-label">CSV file</label>
+              <input type="file" class="form-control" name="file" accept=".csv" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Attach to School Year (optional)</label>
+              <select class="form-select" name="school_year_id">
+                <option value="">— Infer from date —</option>
+                {% for y in years %}
+                <option value="{{ y.id }}">{{ y.name }} ({{ y.start_date }} → {{ y.end_date }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3 small text-muted">
+              Status values: <code>Present</code>, <code>Absent</code>, <code>Tardy</code>.
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" type="submit">Import CSV</button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('admin.reports') }}">Go to Reports</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="col-md-6">
-    <select name="school_year_id" class="form-select">
-      <option value="">(Infer by date or CSV year)</option>
-      {% for y in years %}
-        <option value="{{ y.id }}">{{ y.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-12">
-    <button class="btn btn-primary">Import</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('admin.reports') }}">Cancel</a>
-  </div>
-</form>
+</div>
 {% endblock %}

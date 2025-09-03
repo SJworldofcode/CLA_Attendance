@@ -1,8 +1,4 @@
 date,last_name,first_name,grade,status,notes,year
-8/15/2025,Johnson,Meili,8,Present,,2024-25
-8/16/2025,Johnson,Meili,8,Present,,2024-25
-8/17/2025,Johnson,Meili,8,Present,,2024-25
-8/18/2025,Johnson,Meili,8,Present,,2024-25
-8/19/2025,Johnson,Meili,8,Present,,2024-25
-8/22/2025,Johnson,Meili,8,Absent,,2024-25
-8/23/2025,Johnson,Meili,8,Present,,2024-25
+8/15/2024,Doe,Jane,3,Present,,2024-25
+8/15/2024,Smith,Ava,K,Absent,Family trip,2024-25
+8/16/2024,Doe,Jane,3,Tardy,Dentist,2024-25
