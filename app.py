@@ -8,6 +8,7 @@ from auth import auth_bp
 from admin import admin_bp
 from teacher import teacher_bp
 from sqlalchemy import text
+from calendar_ui import calendar_ui
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True, static_folder="static", template_folder="templates")
@@ -32,6 +33,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(teacher_bp)
+    app.register_blueprint(calendar_ui)
 
     # Simple dashboard
     @app.route("/")
