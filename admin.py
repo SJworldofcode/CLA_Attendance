@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, case, or_
 from werkzeug.security import generate_password_hash
 import csv, io
+from sqlalchemy.exc import IntegrityError
 
 from models import (
     db,
@@ -256,6 +257,39 @@ def calendar_delete(cid):
     db.session.commit()
     flash("Calendar entry deleted", "warning")
     return redirect(url_for("admin.calendar_list"))
+
+@admin_bp.route("/calendar/<int:cid>/edit", methods=["GET", "POST"])
+@login_required
+def calendar_edit(cid):
+    rec = SchoolCalendar.query.get_or_404(cid)
+
+    if request.method == "POST":
+        # read form
+        d = date.fromisoformat(request.form["date"])
+        t = request.form["type"]
+        desc = (request.form.get("description") or "").strip() or None
+
+        # recompute school year based on the chosen date
+        sy = SchoolYear.query.filter(SchoolYear.start_date <= d,
+                                     SchoolYear.end_date >= d).first()
+        sy_id = sy.id if sy else None
+
+        # apply changes
+        rec.date = d
+        rec.type = t
+        rec.description = desc
+        rec.school_year_id = sy_id
+
+        try:
+            db.session.commit()
+            flash("Calendar day updated", "success")
+            return redirect(url_for("admin.calendar_list"))
+        except IntegrityError:
+            db.session.rollback()
+            flash("Another entry already exists for that date in the same school year.", "danger")
+
+    return render_template("calendar_form.html", rec=rec)
+
 
 # ---------- Calendar ICS export/import ----------
 @admin_bp.route("/calendar/export")

@@ -1,26 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h4 class="mb-3">Add/Update Day</h4>
-<form method="post" class="row g-3">
-  <div class="col-md-3">
-    <label class="form-label">Date</label>
-    <input type="date" name="date" class="form-control" required>
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h4 class="card-title mb-3">{{ 'Edit Day' if rec else 'New Day' }}</h4>
+          <form method="POST" action="{% if rec %}{{ url_for('admin.calendar_edit', cid=rec.id) }}{% else %}{{ url_for('admin.calendar_new') }}{% endif %}">
+            <div class="mb-3">
+              <label class="form-label">Date</</label>
+              <input class="form-control" type="date" name="date" value="{{ rec.date if rec else '' }}" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Type</label>
+              <select class="form-select" name="type" required>
+                {% set types = ['Regular','Holiday','In-service','Closed'] %}
+                {% for t in types %}
+                  <option value="{{ t }}" {% if rec and rec.type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description (optional)</label>
+              <input class="form-control" type="text" name="description" value="{{ rec.description if rec and rec.description else '' }}">
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" type="submit">{{ 'Save Changes' if rec else 'Create' }}</button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_list') }}">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="col-md-3">
-    <label class="form-label">Type</label>
-    <select name="type" class="form-select">
-      {% for t in ['Regular','Holiday','In-service','Closed'] %}
-        <option value="{{t}}">{{t}}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-6">
-    <label class="form-label">Description</label>
-    <input name="description" class="form-control" placeholder="e.g., Labor Day">
-  </div>
-  <div class="col-12">
-    <button class="btn btn-primary">Save</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('admin.calendar_list') }}">Cancel</a>
-  </div>
-</form>
+</div>
 {% endblock %}
